@@ -34,6 +34,7 @@
 
 import csv
 import re
+import sys
 
 class Record(object):
     def __init__(self,
@@ -67,6 +68,60 @@ class Record(object):
                          self.postalCode,
                          self.disease)
 
+    def __eq__(self, rhs):
+        if (self.name       == rhs.name       and
+            self.telephone  == rhs.telephone  and
+            self.birthDay   == rhs.birthDay   and
+            self.birthMonth == rhs.birthMonth and
+            self.birthYear  == rhs.birthYear  and
+            self.gender     == rhs.gender     and
+            self.postalCode == rhs.postalCode and
+            self.disease    == rhs.disease):
+            return True
+        else:
+            return False
+
+    def __ne__(self, rhs):
+        return not self.__eq__(rhs)
+
+    # Match on postal code, gender, year of birth
+    def match(self, rhs):
+        return (self.birthYear   == rhs.birthYear and
+                self.gender      == rhs.gender    and
+                self.postalCode  == rhs.postalCode)
+
+def getUnique(records):
+    unique = []
+
+    for r in records:
+        if (isUnique(records, r)):
+            unique.append(r)
+
+    return unique
+
+def isUnique(records, record):
+    for r in records:
+        if (not r is record and r == record):
+            return False
+
+    return True
+
+def getUniqueMatch(records):
+    unique = []
+
+    for r in records:
+        if (isUniqueMatch(records, r)):
+            unique.append(r)
+
+    return unique
+
+def isUniqueMatch(records, record):
+    for r in records:
+        if (not r is record and r.match(record)):
+            return False
+
+    return True
+
 # Sample input: Maliyah Fields,519 537 2516,14-12-1970,F,N2L 6P5
 def makePollRecord(csvRow):
     name       = csvRow[0]
@@ -87,10 +142,10 @@ def makePollRecord(csvRow):
             birthYear,
             gender,
             postalCode,
-            None)
+            0)
 
 def parsePollFile(pollFileName):
-    print("Parsing '" + pollFileName + "'...")
+    #print("Parsing '" + pollFileName + "'...")
 
     # Read data from file
     with open(pollFileName) as f:
@@ -119,7 +174,7 @@ def makeDiseaseRecord(csvRow):
             disease)
 
 def parseDiseaseFile(diseaseFileName):
-    print("Parsing '" + diseaseFileName + "'...")
+    #print("Parsing '" + diseaseFileName + "'...")
 
     # Read data from file
     with open(diseaseFileName) as f:
@@ -130,17 +185,65 @@ def parseDiseaseFile(diseaseFileName):
 
     return records
 
+# Sample output: George Georgerson,519 345 9336,1977,M,N2L 7R2,AIDS
+def identify(pollRecords, diseaseRecords):
+    identified = []
+
+    #
+    # An identified entry must match only a single poll record and
+    # disease record
+    #
+
+    polls    = getUniqueMatch(pollRecords)
+    diseases = getUniqueMatch(diseaseRecords)
+
+    for p in polls:
+        for d in diseases:
+            if (p.match(d)):
+                identified.append(Record(
+                    p.name,
+                    p.telephone,
+                    None,
+                    None,
+                    p.birthYear,
+                    p.gender,
+                    p.postalCode,
+                    d.disease))
+
+    return identified
+
+# Sample output: George Georgerson,519 345 9336,1977,M,N2L 7R2,AIDS
+def writeToCSV(records, filename):
+    csvWriter = csv.writer(sys.stdout, lineterminator='\n')
+
+    for r in records:
+        csvWriter.writerow(
+                [r.name]       +
+                [r.telephone]  +
+                [r.birthYear]  +
+                [r.gender]     +
+                [r.postalCode] +
+                [r.disease])
+
 def main():
-    pollRecords    = parsePollFile("Small-Poll-Data.csv")
-    diseaseRecords = parseDiseaseFile("Small-Disease-Records.csv")
+    #pollRecords       = parsePollFile("Small-Poll-Data.csv")
+    #diseaseRecords    = parseDiseaseFile("Small-Disease-Records.csv")
+    pollRecords       = parsePollFile("Poll-Data.csv")
+    diseaseRecords    = parseDiseaseFile("Disease-Records.csv")
+    identifiedRecords = identify(pollRecords, diseaseRecords)
 
-    # Print out each record
-    print("\nPoll Records:")
-    for record in pollRecords:
-        print(record)
+    writeToCSV(identifiedRecords, "Reidentified-Data.csv")
 
-    print("\nDisease Records:")
-    for record in diseaseRecords:
-        print(record)
+    #print("\nPoll Records:")
+    #for record in pollRecords:
+        #print(record)
+
+    #print("\nDisease Records:")
+    #for record in diseaseRecords:
+        #print(record)
+
+    #print("\nIdentified Records:")
+    #for record in identifiedRecords:
+        #print(record)
 
 main()
