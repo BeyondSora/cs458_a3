@@ -90,6 +90,12 @@ class Record(object):
                 self.gender      == rhs.gender    and
                 self.postalCode  == rhs.postalCode)
 
+    def matchDiseaseRecord(self, rhs):
+        return (self.birthYear   == rhs.birthYear  and
+                self.gender      == rhs.gender     and
+                self.postalCode  == rhs.postalCode and
+                self.disease     == rhs.disease)
+
 def getUnique(records):
     unique = []
 
@@ -203,8 +209,8 @@ def identify(pollRecords, diseaseRecords):
                 identified.append(Record(
                     p.name,
                     p.telephone,
-                    None,
-                    None,
+                    p.birthDay,
+                    p.birthMonth,
                     p.birthYear,
                     p.gender,
                     p.postalCode,
@@ -225,7 +231,7 @@ def writeToCSV(records, filename):
                 [r.postalCode] +
                 [r.disease])
 
-def main():
+def genReidentified():
     #pollRecords       = parsePollFile("Small-Poll-Data.csv")
     #diseaseRecords    = parseDiseaseFile("Small-Disease-Records.csv")
     pollRecords       = parsePollFile("Poll-Data.csv")
@@ -245,5 +251,81 @@ def main():
     #print("\nIdentified Records:")
     #for record in identifiedRecords:
         #print(record)
+
+# Sample input: Maliyah Fields,519 537 2516,1970,F,N2L 6P5,Cancer
+def makeQueryRecord(csvRow):
+    name       = csvRow[0]
+    telephone  = csvRow[1]
+    birthYear  = csvRow[2]
+    gender     = csvRow[3]
+    postalCode = csvRow[4]
+    disease    = csvRow[5]
+
+    return Record(
+            name,
+            telephone,
+            None,
+            None,
+            birthYear,
+            gender,
+            postalCode,
+            disease)
+
+def parseQueryFile(queryFileName):
+    # Read data from file
+    with open(queryFileName) as f:
+        csvReader = csv.reader(f, delimiter=',')
+        records = []
+        for row in csvReader:
+            records.append(makeQueryRecord(row))
+
+    return records
+
+def genProbability():
+    pollRecords       = parsePollFile("Poll-Data.csv")
+    diseaseRecords    = parseDiseaseFile("Disease-Records.csv")
+    queryRecords      = parseQueryFile("Queries.csv")
+    identifiedRecords = identify(pollRecords, diseaseRecords)
+
+    # Remove all identified records from Disease Record
+    diseases = []
+    for d in diseaseRecords:
+        isIdentified = False
+
+        for i in identifiedRecords:
+            if d.matchDiseaseRecord(i):
+                isIdentified = True
+                break
+
+        if not isIdentified:
+            diseases.append(d)
+
+    #print("\nAmbiguous Disease Records:")
+    #for d in diseases:
+    #    print(d)
+
+    # Compute PR for each query
+    queryPR = []
+    for q in queryRecords:
+        qMatches = 0
+        for d in diseases:
+            if q.matchDiseaseRecord(d):
+                qMatches += 1
+
+        if qMatches == 0:
+            pr = 0.0
+        else:
+            pr = 1.0 / qMatches
+        queryPR.append(pr)
+
+    #print("\nProbabilities:")
+    for pr in queryPR:
+        print("{0:.2f}".format(pr))
+
+def main():
+    if sys.argv[1] == "reidentify":
+        genReidentified()
+    elif sys.argv[1] == "probability":
+        genProbability()
 
 main()
